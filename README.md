@@ -3,12 +3,13 @@
 - [UnderDoc Tutorial - Expense Analytics using GenAI and MCP server for SQLite DB](#underdoc-tutorial---expense-analytics-using-genai-and-mcp-server-for-sqlite-db)
   - [Introduction](#introduction)
   - [Overview](#overview)
+  - [What is MCP](#what-is-mcp)
   - [Prerequisite](#prerequisite)
     - [Get an UnderDoc API Key](#get-an-underdoc-api-key)
       - [Step 1: Signup](#step-1-signup)
       - [Step 2: Login](#step-2-login)
       - [Step 3: Get the key from "Key Management" Page](#step-3-get-the-key-from-key-management-page)
-    - [Install Docker](#install-docker)
+    - [Install uv](#install-uv)
     - [Install Python 3.12](#install-python-312)
     - [Install sqlite command line interface](#install-sqlite-command-line-interface)
   - [Environment Setup](#environment-setup)
@@ -19,54 +20,52 @@
     - [Copy your expense images into the folder receipt-images](#copy-your-expense-images-into-the-folder-receipt-images)
   - [Perform Data Extraction and Save to DB](#perform-data-extraction-and-save-to-db)
     - [Data Verification](#data-verification)
-  - [Expense Analytics](#expense-analytics)
-    - [Run Metabase Docker Container](#run-metabase-docker-container)
-    - [Visit Metabase for the First Time from Web Browser](#visit-metabase-for-the-first-time-from-web-browser)
-    - [Connect to UnderDoc SQLite DB](#connect-to-underdoc-sqlite-db)
-    - [Overview of Expense Data](#overview-of-expense-data)
-    - [Expense Analytics like a Pro](#expense-analytics-like-a-pro)
-  - [Python Code Explanation](#python-code-explanation)
-    - [model.py](#modelpy)
-    - [main.py](#mainpy)
+  - [Expense Analytics with Natural Language](#expense-analytics-with-natural-language)
+    - [Install Claude Desktop](#install-claude-desktop)
+    - [Clone the source of reference MCP server from Github](#clone-the-source-of-reference-mcp-server-from-github)
+    - [Install MCP Server for SQLite for Claude Desktop](#install-mcp-server-for-sqlite-for-claude-desktop)
+    - [Verify the MCP server in Claude Desktop](#verify-the-mcp-server-in-claude-desktop)
+    - [Overview of UnderDoc Expense (SQLite) DB](#overview-of-underdoc-expense-sqlite-db)
+    - [Expense Analytics by Asking Questions](#expense-analytics-by-asking-questions)
+  - [Final words](#final-words)
   - [Resources](#resources)
 
 ---
 
 ## Introduction
 
-In my previous [tutorial](https://medium.com/underdoc/expense-analytics-using-metabase-and-llm-with-receipt-invoice-images-part-1-c5ace9a8bd3c), I discussed about how to extract strucured expense data from images, store it into a SQLite DB and use Metabase to perform expense analytics.
+In my previous [tutorial](https://medium.com/underdoc/expense-analytics-using-metabase-and-llm-with-receipt-invoice-images-part-1-c5ace9a8bd3c), I discussed about how to extract structure expense data from images, store it into a SQLite DB and use Metabase to perform expense analytics.
 
-In this tutorial, I would like to discuss using GenAI and MCP server for SQLite in performing expense analytics by chating with a LLM in natural language.
+In this tutorial, I would like to discuss using GenAI and MCP server for SQLite in performing expense analytics by chatting with a LLM in natural language.
 
-This tutorial focus on using GenAI (Claude Desktop) and MCP server for SQLite, and assume that the database was already populated with UnderDoc expense records. You can follow the previous tutorial up to the section "Perform Data Extraction and Save to DB". Of you want to have a quick look on how the MCP server works, you can also download the sample SQLite DB with 20 sample expense records [here](). Save the file "underdoc
-
-Do you have a bunch of receipts (or invoice, demand-notes, etc.) from various sources (e.g. photo of paper receipts, screen cap from PDF, email, etc.) and want to perform the following analytical activities?
-
-- Have a tool that can extract the data and infer the expense category for you
-- Your receipts contains multi-language contents (e.g. Chinese, Japanese, etc.), and various currencies
-- Save those data into a database for exploration and analytics
-- Group the expenses by various criterias (e.g. month, expense category, currency, etc.) and visualize it with charts
-
-If the above is what you want to do, then this tutorial is for you!
-
-This is a step-by-step tutorial to guide you through the process of extracting data from expense images, persist it into a local database, and analyze it with charts by dynamic criteria.
+This tutorial focus on using GenAI (Claude Desktop) and MCP server for SQLite, and assume that the database was already populated with UnderDoc expense records. You can follow the previous tutorial up to the section "Perform Data Extraction and Save to DB" (skip the rest of the sections relating to Metabase). If you want to have a quick look on how the MCP server works, you can also download the sample SQLite DB with 20 sample expense records [here](https://github.com/under-doc/underdoc-tutorial-expense-analytics-mcp-sqlite/raw/refs/heads/main/underdoc.db).
 
 You need to have the following in order to be able to run through this tutorial:
 
 - A laptop or desktop running MacOS
-- Python (3.12 or above)
-- Docker (for running Metabase)
+- uv (a Python runtime and package manager for running the SQLite MCP server)
+- git (for cloning the MCP server source code from github)
+- Claude Desktop (this is the GenAI app we are using in this tutorial, which supports MCP servers)
 - Sqlite DB
 
-This tutorial tries to make the process as simple as possible, and suitable for users with less technical experience.
+For those reader haven't went through the previous tutorial, I have replicated the steps here for easy reference. If you already have the SQLite DB ready, you can skip to the section ["Expense Analytics with Natural Language"](#expense-analytics-with-natural-language).
 
 ## Overview
 
 This tutorial use the following components for various tasks:
 
 - [UnderDoc](https://underdoc.io) for extracting data from receipt/invoice/demand-notes images
+- [uv](https://github.com/astral-sh/uv) for managing Python runtime and runs the MCP servers
 - [SQLite](https://sqlite.com/) for storing extracted data
-- [Metabase](https://www.metabase.com/) for expense analytics
+- [Claude Desktop for Mac](https://claude.ai/download) for expense analytics using LLM with MCP servers
+
+## What is MCP
+
+There are too many articles discussing MCP (Model Context Protocol), so I will not go into details here. In short, MCP provided a standardized way for LLM to interact with various resources and tools required for answering users' questions.
+
+There are already a numbers of tools supports MCP server, like Claude desktop, Cursor IDE, etc. Many other GenAI providers (e.g. OpenAI, Google, etc.) also announced the support of MCP in their services as well.
+
+The open source MCP repo in Github had provided a list of [reference servers](https://github.com/modelcontextprotocol/servers). There is one for [SQLite DB](https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite) integration, which will be used in this tutorial.
 
 ## Prerequisite
 
@@ -108,9 +107,13 @@ In the Key Management page, click the eye icon to display the key, and then copy
 
 Now you have the UnderDoc API key, and can proceed to the rest of the tutorial.
 
-### Install Docker
+### Install uv
 
-In this tutorial, we will use Docker to run Metabase, which is a powerful open source data analytics platform. The easiest way to have Docker in your machine is to download Docker Desktop from [Docker](https://docker.com) and install it (free for personal use).
+To run the SQLite MCP server, "uv" is required. You can refer to their [site](https://docs.astral.sh/uv/getting-started/installation/) for installation instructions. The easiest way is to install it using brew:
+
+```bash
+brew install uv
+```
 
 ### Install Python 3.12
 
@@ -332,327 +335,167 @@ DIAMOND HILL, KOWLOON|Water bill|HKD|287.8|receipt-images/expense_010.png
 
 As you can see, the sample images provided include English, Chinese and Japanese. You can also see the source image file for each record.
 
-## Expense Analytics
+## Expense Analytics with Natural Language
 
-Now we have the expense data from our receipt/invoice images extracted and stored in the database, now we can use Metabase to perform analytics.
+Now we have the expense data from our receipt/invoice images extracted and stored in the database, now we can use Claude Desktop and MCP server for SQLite to perform analytics.
 
-First of all, we use Docker to run an instance of Metabase.
+First of all, we need to install Claude Desktop (if you did not use it before).
 
-### Run Metabase Docker Container
+### Install Claude Desktop
 
-Verify that you have Docker installed.
+Follow the instructions in [Anthropic's website](https://claude.ai/download) to download and install Claude desktop. Then sign up an account if required.
 
-```bash
-docker --version
-```
+### Clone the source of reference MCP server from Github
 
-You should see something like below:
+At the moment of writing, using the reference MCP server for SQLite DB requires cloning the source code from their Github repo.
 
 ```bash
-docker --version
-Docker version 28.0.1, build 068a01e
+git clone https://github.com/modelcontextprotocol/servers.git
 ```
 
-We can then start Metabase with the following command.
+Upon cloning, the source for the MCP server for SQLite is in the subfolder "servers/src/sqlite". You can refer to their README file for the MCP server's features and installation instructions.
+
+### Install MCP Server for SQLite for Claude Desktop
+
+To install a MCP server for Claude Desktop, you need to edit the app's config file. For Mac, the location is:
 
 ```bash
-docker run -d -p 3000:3000 \
-  -v <your-project-folder>/metabase-data:/metabase-data \
-  -e "MB_DB_FILE=/metabase-data/metabase.db" \
-  --name metabase metabase/metabase
+~/Library/Application Support/Claude/claude_desktop_config.json
 ```
 
-Replace <your-project-folder> with the folder of your project. For example, my project location is:
+Use any editor, open the file and add the following snippet into the file:
+
+```json
+"mcpServers": {
+  "sqlite": {
+    "command": "uv",
+    "args": [
+      "--directory",
+      "<parent_of_servers_repo>/servers/src/sqlite",
+      "run",
+      "mcp-server-sqlite",
+      "--db-path",
+      "<underdoc_db_file_path>"
+    ]
+  }
+}
+```
+
+If you already installed MCP server before, you just need to append the "sqlite" part into the "mcpServers" section.
+
+Remember to replace the placeholder:
+
+- <parent_of_servers_repo>: the folder where you cloned the MCP server source code
+- <underdoc_db_file_path>: the path to your underdoc.db file
+
+For example, in my environment, the snippet is as follows:
+
+```json
+"mcpServers": {
+  "sqlite": {
+    "command": "uv",
+    "args": [
+      "--directory",
+      "/Users/clarenceho/workspace/mcp/servers/src/sqlite",
+      "run",
+      "mcp-server-sqlite",
+      "--db-path",
+      "/Users/clarenceho/workspace/underdoc/sqlite/underdoc.db"
+    ]
+  }
+}
+```
+
+Upon modification, restart Claude Desktop.
+
+Note: uv (you will notice that it's the command to start the MCP server) also need access to the folders ~/.local/share/uv and ~/.local/share/python. In my case, at the first time I start Claude Desktop after installing the MCP server, I got error like "Permission denied to folder ~/.local/share/uv". If you got the same error, create the folders and grant permission to yourself. For example, in my case:
 
 ```bash
-/Users/clarenceho/workspace/underdoc/underdoc-expense-analytics-tutorial/metabase-data
-
-# I replace /Users/clarenceho with ~, which means user's home folder
-~/workspace/underdoc/underdoc-expense-analytics-tutorial/metabase-data
+sudo mkdir ~/.local/share/uv
+sudo mkdir ~/.local/share/python
+sudo chown <your-username> ~/.local/share/uv
+sudo chown <your-username> ~/.local/share/python
 ```
 
-Then the command for me is below.
+### Verify the MCP server in Claude Desktop
+
+Let's verify that the MCP server for SQLite was installed successfully for Claude.
+
+In Claude's main chat windows, you will see a list of icon buttons. Click the "MCP Tools icon" as highlighted in the diagram.
+
+![Claude tools icon](images/claude-tools-icon.png)
+
+A dialog box will pop up which displays the list of MCP tools (provided by the configured MCP servers) available for it's LLM to invkoe. The following screenshot is an example:
+
+![Claude available MCP tools](images/claude-available-mcp-tools.png)
+
+I highlighted 2 of the tools provided by SQLite server. Those are function calls that LLM can use to retrieve information and data from the SQLite DB. Because the MCP server's config include the UnderDoc DB file, Claude will be able to reveal the schema and data of the expense table and data. The full list of tools provided by SQLite MCP server can be found [here](https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite). Seeing the tools in this dialog box means that you installed the SQLite MCP server to Claude successfully.
+
+You also see other tools in the screenshot as I also installed the ["filesystem" reference server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem).
+
+### Overview of UnderDoc Expense (SQLite) DB
+
+Let's start with the following query to ask Claude to take a look at the SQLite DB:
 
 ```bash
-docker run -d -p 3000:3000 \
-  -v ~/workspace/underdoc/underdoc-expense-analytics-tutorial/metabase-data:/metabase-data \
-  -e "MB_DB_FILE=/metabase-data/metabase.db" \
-  --name metabase metabase/metabase
+Show me the tables in the sqlite db
 ```
 
-Let's breakdown the command into more details:
+After you submit the query, Claude figured out that it can use the SQLite MCP server's "list_tables" tool to answer my question. For safety purpose, it will ask for your permission to run the tools.
 
-- Run the container in daemon mode (the -d option)
-- Expose the port 3000 from the container (so your browser can connect to Metabase)
-- Mount the local folder "~/workspace/underdoc/underdoc-expense-analytics-tutorial/metabase-data" to the container's folder "metabase-data", which is Metabase DB folder. By doing this you can retain your Metabase setting when you run your container next time, and also able to access the expense SQLite DB, which is also reside in the folder (the -v option)
-- Pass the environment variable MB_DB_FILE, which is used by Metabase to identify the database file location. By default, Metabase use H2 database, and the file will be stored in the /metabase-data sub-folder as well
-- Give the container a name "metabase", so that you can restart it by running "docker start metabase" (the --name option)
-- The image to pull from Docker hub is "metabase/metabase". Docker will pull the image on the first time it runs
+![Claude sqlite run list tables](images/claude-sqlite-show-tables.png)
 
-You can verify whether the container is running by running the following command.
+Click "Allow for this chat" to let Claude runs the tool.
+
+Claude will run the tool and response that it found 1 table "myexpense", and ask if you want it to dscribe it's structure.
+
+![Claude sqlite run list tables results](images/claude-list-tables.png)
+
+You can also expand the tool calling drop-down to see the detail request and response between Claude and the SQLite MCP server.
+
+Type "yes" to continue. Claude will then call the appropriate tool in the SQLite MCP Server and displays the schema of the "myexpense" table in the UnderDoc expense DB in a table format.
+
+![Claude myexpense-schema](images/claude-myexpense-schema.png)
+
+### Expense Analytics by Asking Questions
+
+Now we can ask questions about the expenses. For example, I would like to see the distribution of my expense among different categories and currencies. Submit the following query.
 
 ```bash
-docker ps
+Show me the total amount of expense by category, by currency
 ```
 
-You should see something similar to the following.
+Claude will identify the right tool in SQLite MCP server (in this case read_query) and list the data in table format.
+
+![Claude myexpense data](images/claude-expense-data.png)
+
+Claude is also smart enought to notice that there are 2 categories ("Food" and "food") that are similar and ask if you want to combine them. Answer yes and Claude will submit another query to merge the 2 categories and re-display the data.
+
+Now let's ask Claude to display the data in chart format. Submit the following query.
 
 ```bash
-docker ps
-CONTAINER ID   IMAGE               COMMAND                  CREATED              STATUS              PORTS                    NAMES
-27d0ceffb29a   metabase/metabase   "/app/run_metabase.sh"   About a minute ago   Up About a minute   0.0.0.0:3000->3000/tcp   metabase
+Show me the result in a multi-line chart
 ```
 
-You can also refer to the Docker container's log to see if the container is up and running.
+Claude will then generate the necessary code and run it, and shows the chart. When you mouse over a particular category, it will show the amount in ecah currency. Feel free to interact with Claude to adjust the chart (e.g. change the scale of the amount in the y-axis to make it easier to read).
+
+![Claude myexpense data multiline chart](images/claude-expense-multi-line-chart.png)
+
+The expenses cover multiple currencies (USD, TWD, JPY, HKD), and suppose I want to convert the amount of all expenses to my base currency for an unified overview. Type in the following query.
 
 ```bash
-docker logs -f metabase
+Convert all expense amount to HKD currency
 ```
 
-You should see something similar to below.
+Claude is smart enough to query the web for the latest exchange rates from other currencies to HKD, rerun the query and generate the new chart. The following is what I got.
 
-```bash
-2025-04-01 09:28:36,326 INFO sync.analyze :: classify-tables Analyzed [*****************************************·········] 😊   84% Table 5 ''PUBLIC.FEEDBACK''
-2025-04-01 09:28:36,326 INFO sync.analyze :: classify-tables Analyzed [***********************************************···] 😎   96% Table 8 ''PUBLIC.INVOICES''
-2025-04-01 09:28:36,333 INFO sync.util :: FINISHED: step ''classify-tables'' for h2 Database 1 ''Sample Database'' (23.0 ms)
-2025-04-01 09:28:36,342 INFO sync.util :: FINISHED: Analyze data for h2 Database 1 ''Sample Database'' (120.3 ms)
-2025-04-01 09:28:36,342 INFO sync.util :: STARTING: Cache field values in h2 Database 1 ''Sample Database''
-2025-04-01 09:28:36,345 INFO sync.util :: STARTING: step ''delete-expired-advanced-field-values'' for h2 Database 1 ''Sample Database''
-2025-04-01 09:28:36,594 INFO sync.util :: FINISHED: step ''delete-expired-advanced-field-values'' for h2 Database 1 ''Sample Database'' (248.2 ms)
-2025-04-01 09:28:36,595 INFO sync.util :: STARTING: step ''update-field-values'' for h2 Database 1 ''Sample Database''
-2025-04-01 09:28:37,765 INFO models.field-values :: Field BODY was previously automatically set to show a list widget, but now has 231 values. Switching Field to use a search widget instead.
-2025-04-01 09:28:38,546 INFO sync.util :: FINISHED: step ''update-field-values'' for h2 Database 1 ''Sample Database'' (1.9 s)
-2025-04-01 09:28:38,553 INFO sync.util :: FINISHED: Cache field values in h2 Database 1 ''Sample Database'' (2.2 s)
-2025-04-01 09:28:38,555 INFO sync.util :: FINISHED: Sync h2 Database 1 ''Sample Database'' (3.6 s)
-2025-04-01 09:28:38,564 INFO notification.seed :: Seeding default notifications
-2025-04-01 09:28:38,665 INFO notification.seed :: Seeded notifications: {:create 3}
-2025-04-01 09:28:38,671 INFO core.QuartzScheduler :: Scheduler MetabaseScheduler_$_27d0ceffb29a1743499714537 started.
-2025-04-01 09:28:38,672 INFO metabase.task :: Task scheduler started
-2025-04-01 09:28:38,683 INFO core.core :: Metabase Initialization COMPLETE in 29.1 s
-2025-04-01 09:28:38,772 INFO task.refresh-slack-channel-user-cache :: Slack is not configured, not refreshing slack user/channel cache.
-```
+![Claude myexpense hkd](images/claude-expense-hkd.png)
 
-### Visit Metabase for the First Time from Web Browser
+You can continue to ask Claude to fine tune the chart (e.g. change the axis, color, etc.) or filter expense for a particular period, and perform analytics of your expenses without any tool (e.g. Metabase) and SQL knowledge!
 
-Open a Web Browser, and visit http://localhost:3000.
-
-You should see the getting start page.
-
-![Metabase get started](images/metabase-get-start.png)
-
-Click "Let's get started" to proceed to setup Metabase.
-
-The next page is a few setup questions. The first one is language, choose the one you want and click next.
-
-![Metabase select language](images/metabase-select-language.png)
-
-In next page, enter the corresponding information.
-
-![Metabase setup info](images/metabase-setup-info.png)
-
-In the next page, choose the option you want.
-
-![Metabase usage](images/metabase-usage.png)
-
-### Connect to UnderDoc SQLite DB
-
-The next step is add data, we can add our expense SQLite DB connection here.
-
-Firstly, click the "Show more options" button to see more database types.
-
-![Metabase add data 1](images/metabase-add-data-1.png)
-
-Select the database type "SQLite".
-
-![Metabase sqlite](images/metabase-sqlite.png)
-
-In the next page, enter the SQLite DB information. For display name, enter "MyExpense". For filename, enter "/metabase-data/underdoc.db" which is the SQLite DB file we use, and was mounted to the Metabase's container. The following shows the screen shot.
-
-![Metabase sqlite](images/metabase-sqlite-connection.png)
-
-Click "Connect database" to connect.
-
-In the last page, click "Finish".
-
-![Metabase sqlite finish](images/metabase-sqlite-finish.png)
-
-In the last page, click "Take me to Metabase".
-
-![Metabase take me to](images/metabase-take-me-to.png)
-
-You will then able to see the home page of Metabase, include the "Myexpense" database that contains my expense data.
-
-![Metabase homepage](images/metabase-homepage.png)
-
-### Overview of Expense Data
-
-From the Home page, you will notice a button called "A look at Myexpense", which is some default explorations provided by Metabase by looking at the database tables and schema. When you click into it. You will be able to see some default metrics presented in various cards and charts.
-
-For example, count of expenses by various date time criteria (day of week, month of year, quarter of year, date), and total amount over time, etc.
-
-In the lower part of the page, you will see charts with various grouping criteria. Those including amount range, image type (receipt/invoice), and currency, etc.
-
-![A look at myexpense](images/a-look-at-myexpense.png)
-
-### Expense Analytics like a Pro
-
-Metabase is a powerful tool that enables you to perform many forms of grouping, filtering and drill down.
-
-For example, I would like to view my expense distribution among various categories, focus in HKD (Hong Kong dollars).
-
-First of all, we can scroll down to the chart "Myexpense per Currency". Mouse over the bar "HKD", and you can see there are totally 9 transactions.
-
-![myexpense per currency](images/myexpense-per-currency.png)
-
-Now click onto the bar. A pop-up menu will display, like the one below.
-
-![myexpense per currency drop down menu](images/myexpense-per-currency-drop-down-menu.png)
-
-Click the "Break out by" button to perform analytics on HKD expenses.
-
-At the next drop down menu, select to break down by expense category.
-
-![myexpense per currency by category](images/myexpense-per-currency-by-category.png)
-
-At the next drop down menu, select "Expense Category".
-
-![myexpense per currency by expense category](images/myexpense-per-currency-by-expense-category.png)
-
-The you will be able to see the chart, which is by expense category (x-axis), and then by number of expenses (y-axis).
-
-![count by expense category](images/count-by-expense-category.png)
-
-Suppose we want to see the amount instead of transactions count. Click into the "Editor" button to enter the chart editor.
-
-![count by expense category editor](images/count-by-expense-category-editor.png)
-
-In the "Summarize" section, add Sum of "Total Amount", and delete "Count".
-
-![count by expense category editor 1](images/count-by-expense-category-editor-1.png)
-
-The following is the result screenshot.
-
-![count by expense category editor 2](images/count-by-expense-category-editor-2.png)
-
-Click "Visualize" to view the chart.
-
-![amount by expense category](images/amount-by-expense-category.png)
-
-You will be able to see the distribution of amount by categories, which are inferred by UnderDoc's LLM during structured output extraction from expense images.
-
-You can save this chart, put it into your own dashboard, or share it with others. Metabase has so many features that I am simply not able to cover.
-
-If you want to see details of each expense, you can also click "See this Myexpenses" when mouse over a particular bar in a chart.
-
-![hkd expense list](images/hkd-expenses-list.png)
-
-## Python Code Explanation
-
-Finally, I would like to give you an overview of the Python code in this tutorial.
-
-### model.py
-
-In this file, we defined a model class named "MyExpense", which include the fields we want to be stored into the database.
-
-```python
-from sqlmodel import Field, SQLModel
-from datetime import datetime
-from typing import Optional
-
-class MyExpense(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    date: datetime = Field(..., description="The date of the expense")
-    expense_type: str = Field(..., description="The type of the expense")
-    shop_name: str = Field("", description="The name of the shop")
-    shop_address: str = Field("", description="The address of the shop")
-    expense_category: str = Field(..., description="The category of the expense")
-    currency: str = Field(..., description="The currency of the expense")
-    total_amount: float = Field(..., description="The total amount of the expense")
-    source_file_name: str = Field("", description="The source file name")
-```
-
-The model class inherit the SQLModel class from the Python package ["sqlmodel"](https://sqlmodel.tiangolo.com/), which use ["Pydantic"](https://docs.pydantic.dev/latest/) and ["SQLAlchemy"](https://www.sqlalchemy.org/) behind the scene.
-
-### main.py
-
-This is the main Python script that runs the whole process and the high-level flow is:
-
-- Read the expense image files in the path IMAGE_FILE_PATTERN, invoke UnderDoc's SDK to extract the data from image files in batch mode (the function extract_expense_data_from_images())
-- Create a session to the target SQLite DB
-- For each expense item extracted in the response, get the fields we want and construct an instance of the class MyExpense, and then add the record to the database session
-- Finally, commit the session, which will persist the records into the database
-
-```python
-from underdoc import underdoc_client, ExpenseExtractionBatchResponse
-from model import MyExpense
-from sqlmodel import SQLModel, create_engine, Session
-from datetime import datetime
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Running configurations
-IMAGE_FILE_PATTERN = "receipt-images/*.*"
-DB_FILE = "metabase-data/underdoc.db"
-
-def extract_expense_data_from_images() -> ExpenseExtractionBatchResponse:
-    logger.info("Extracting expense data from images - will take some time")
-    # Remember to set the API key in the environment variable (export UNDERDOC_API_KEY=<your_api_key>)
-    client = underdoc_client.Client()
-
-    response = client.expense_image_batch_extract(
-        file_name_pattern=IMAGE_FILE_PATTERN
-    )
-
-    logger.info(f"Extracted expense data from images completed successfully")
-
-    return response
-
-def extract_expense_data_to_db():
-    logger.info("Extracting expense data and persist to DB")
-
-    expense_batch_response = extract_expense_data_from_images()
-
-    # Save expense data to DB
-    engine = create_engine(f"sqlite:///{DB_FILE}")
-
-    SQLModel.metadata.create_all(engine)
-
-    with Session(engine) as session:
-        for expense_with_source in expense_batch_response.expense_data_list:
-            # Handle empty date
-            if expense_with_source.expense_data.expense.date == '':
-                expense_date = datetime.now()
-            else:
-                expense_date=datetime.fromisoformat(expense_with_source.expense_data.expense.date.replace("Z", "+00:00"))
-            expense_data = MyExpense(
-                date=expense_date,
-                expense_type=expense_with_source.expense_data.image_type,
-                shop_name=expense_with_source.expense_data.expense.shop_name,
-                shop_address=expense_with_source.expense_data.expense.shop_address,
-                expense_category=expense_with_source.expense_data.expense.expense_category,
-                currency=expense_with_source.expense_data.expense.currency,
-                total_amount=expense_with_source.expense_data.expense.total_amount,
-                source_file_name=expense_with_source.source_file_name
-            )
-            session.add(expense_data)
-        
-        session.commit()
-
-    logger.info("Expense data saved to DB")
-
-if __name__ == "__main__":
-    logger.info("UnderDoc Tutorial - Extract expense data from imagesand persist to DB")
-    extract_expense_data_to_db()
-```
+## Final words
 
 I hope you will find this tutorial interesting and helpful. If you have any comments or questions, please feel free to contact me (<clarence@underdoc.io>) and I am very happy to answer!
-
-I also plan to create Part 2 of this tutorial, which use another container tool (Podman) and database (PostgreSQL), which provides more features like edit the data directly from Metabase. Stay tuned.
 
 ## Resources
 
