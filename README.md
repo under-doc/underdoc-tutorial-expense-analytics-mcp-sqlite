@@ -421,7 +421,7 @@ sudo chown <your-username> ~/.local/share/python
 
 Let's verify that the MCP server for SQLite was installed successfully for Claude.
 
-In Claude's main chat windows, you will see a list of icon buttons. Click the "MCP Tools icon" as highlighted in the diagram.
+In Claude's main chat windows, you will see a list of icon buttons. Click the "MCP Tools icon" as highlighted in the following screenshot.
 
 ![Claude tools icon](images/claude-tools-icon.png)
 
